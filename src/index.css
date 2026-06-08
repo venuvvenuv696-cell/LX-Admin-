@@ -1,0 +1,74 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+  
+  --color-apple-gray-50: #fbfbfb;
+  --color-apple-gray-100: #f5f5f7;
+  --color-apple-gray-200: #e8e8ed;
+  --color-apple-gray-300: #d2d2d7;
+  --color-premium-gold: #c5a059;
+  --color-premium-gold-light: #dfc28d;
+  --color-apple-blue: #c5a059; /* Mapping existing blue to gold for consistency */
+
+  --color-dark-bg: #050505;
+  --color-dark-card: #121212;
+  --color-dark-border: #252525;
+  --color-dark-text: #f5f5f7;
+}
+
+@layer base {
+  body {
+    @apply font-sans bg-apple-gray-100 text-neutral-950 antialiased transition-colors duration-300;
+  }
+
+  .dark body {
+    @apply bg-dark-bg text-dark-text;
+  }
+}
+
+/* Glass effect */
+.glass {
+  @apply bg-white/70 backdrop-blur-md border border-white/20;
+}
+
+.dark .glass {
+  @apply bg-black/70 border-white/10;
+}
+
+/* Custom shadow */
+.apple-shadow {
+  shadow-box: 0 10px 40px -10px rgba(0,0,0,0.1);
+}
+
+.dark .apple-shadow {
+  shadow-box: 0 10px 40px -10px rgba(0,0,0,0.5);
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  @apply bg-apple-gray-300 rounded-full;
+}
+
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-dark-border;
+}
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}
