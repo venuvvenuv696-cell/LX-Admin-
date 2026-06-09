@@ -23,6 +23,7 @@ import {
 } from 'lucide-react';
 import { AppSettings } from '../types';
 import { cn } from '../lib/utils';
+import { uploadFileWithFallback } from '../lib/imageUtils';
 import { 
   supabase, 
   saveCustomSupabaseConfig, 
@@ -215,27 +216,9 @@ export default function Settings({ settings, onUpdateSettings, onLogout }: Setti
                               const tId = toast.loading('Uploading logo...');
                               
                               try {
-                                const fileExt = file.name.split('.').pop();
+                                const fileExt = file.name.split('.').pop() || 'jpg';
                                 const fileName = `brand_logo_${Date.now()}.${fileExt}`;
-                                const filePath = `system/${fileName}`;
-
-                                // Attempt upload to known buckets based on screenshot
-                                let bucket = 'product images'; // Space as seen in screenshot
-                                let { error: upErr } = await supabase.storage.from(bucket).upload(filePath, file);
-                                
-                                if (upErr) {
-                                  bucket = 'product-images'; // Hyphen version
-                                  const { error: upErrHyphen } = await supabase.storage.from(bucket).upload(filePath, file);
-                                  upErr = upErrHyphen;
-                                }
-
-                                if (upErr) {
-                                   bucket = 'custom-orders';
-                                   const { error: upErr2 } = await supabase.storage.from(bucket).upload(filePath, file);
-                                   if (upErr2) throw upErr2;
-                                }
-
-                                const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filePath);
+                                const publicUrl = await uploadFileWithFallback(file, 'system', fileName);
                                 onUpdateSettings({ ...settings, logoUrl: publicUrl });
                                 toast.success('Logo updated successfully', { id: tId });
                               } catch (err: any) {

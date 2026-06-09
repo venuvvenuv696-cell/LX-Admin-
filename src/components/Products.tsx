@@ -20,6 +20,7 @@ import { Product, ProductStatus } from '../types';
 import { cn } from '../lib/utils';
 import { toast } from 'react-hot-toast';
 import Modal from './ui/Modal';
+import { uploadFileWithFallback } from '../lib/imageUtils';
 
 interface ProductsProps {
   products: Product[];
@@ -40,8 +41,25 @@ export default function Products({ products, onRefresh }: ProductsProps) {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(false);
-  const [uploadingFiles, setUploadingFiles] = useState<File[]>([]);
+  const [uploadingFiles, setUploadingFiles] = useState<{ file: File; preview: string }[]>([]);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  const uploadingFilesRef = React.useRef(uploadingFiles);
+  React.useEffect(() => {
+    uploadingFilesRef.current = uploadingFiles;
+  }, [uploadingFiles]);
+
+  React.useEffect(() => {
+    return () => {
+      uploadingFilesRef.current.forEach(f => {
+        try {
+          URL.revokeObjectURL(f.preview);
+        } catch (e) {
+          console.warn('Url revocation failed', e);
+        }
+      });
+    };
+  }, []);
 
   // Form State
   const [formData, setFormData] = useState({
@@ -68,18 +86,36 @@ export default function Products({ products, onRefresh }: ProductsProps) {
       status: 'available'
     });
     setEditingProduct(null);
+    uploadingFiles.forEach(f => {
+      try {
+        URL.revokeObjectURL(f.preview);
+      } catch (e) {
+        console.warn('Url revocation failed', e);
+      }
+    });
     setUploadingFiles([]);
     setExistingImages([]);
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files) {
-      const files = Array.from(e.target.files);
+      const files = Array.from(e.target.files).map(file => ({
+        file,
+        preview: URL.createObjectURL(file as unknown as Blob)
+      }));
       setUploadingFiles(prev => [...prev, ...files]);
     }
   };
 
   const removeFile = (index: number) => {
+    const fileToRemove = uploadingFiles[index];
+    if (fileToRemove) {
+      try {
+        URL.revokeObjectURL(fileToRemove.preview);
+      } catch (e) {
+        console.warn('Url revocation failed', e);
+      }
+    }
     setUploadingFiles(prev => prev.filter((_, i) => i !== index));
   };
 
@@ -126,35 +162,13 @@ export default function Products({ products, onRefresh }: ProductsProps) {
       if (uploadingFiles.length > 0) {
         const uploadToast = toast.loading('Syncing assets to cloud storage...');
         
-        for (const file of uploadingFiles) {
+        for (const item of uploadingFiles) {
           try {
-            const fileExt = file.name.split('.').pop();
-            const fileName = `${Math.random().toString(36).substring(7)}_${Date.now()}.${fileExt}`;
-            const filePath = `products/${fileName}`;
-
-            // Try 'product-images' bucket first, fallback to 'custom-orders' or 'product images' if it fails
-            let bucket = 'product-images';
-            const { error: firstTryError } = await supabase.storage.from(bucket).upload(filePath, file);
-            
-            if (firstTryError) {
-              bucket = 'product images';
-              const { error: secondTryError } = await supabase.storage.from(bucket).upload(filePath, file);
-              
-              if (secondTryError) {
-                bucket = 'custom-orders';
-                const { error: thirdTryError } = await supabase.storage.from(bucket).upload(filePath, file);
-                if (thirdTryError) throw thirdTryError;
-              }
-            }
-
-            const { data: { publicUrl } } = supabase.storage
-              .from(bucket)
-              .getPublicUrl(filePath);
-            
+            const publicUrl = await uploadFileWithFallback(item.file, 'products');
             uploadedUrls.push(publicUrl);
           } catch (uploadError: any) {
             console.error('File upload failed:', uploadError);
-            toast.error(`Failed to upload ${file.name}: ${uploadError.message}`);
+            toast.error(`Failed to upload ${item.file.name}: ${uploadError.message}`);
           }
         }
 
@@ -527,10 +541,10 @@ export default function Products({ products, onRefresh }: ProductsProps) {
                           </button>
                         </div>
                       ))}
-                      {uploadingFiles.map((file, idx) => (
+                      {uploadingFiles.map((item, idx) => (
                         <div key={`new-${idx}`} className="relative aspect-square rounded-xl overflow-hidden border border-premium-gold/30 bg-neutral-100 dark:bg-dark-bg group">
                           <img 
-                            src={URL.createObjectURL(file)} 
+                            src={item.preview} 
                             alt="preview" 
                             className="w-full h-full object-cover" 
                           />
@@ -569,28 +583,6 @@ export default function Products({ products, onRefresh }: ProductsProps) {
                       className="hidden"
                     />
                   </div>
-
-                  {/* Uploading Files Preview */}
-                  {uploadingFiles.length > 0 && (
-                    <div className="grid grid-cols-4 gap-2">
-                      {uploadingFiles.map((file, idx) => (
-                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-apple-gray-200 dark:border-dark-border bg-neutral-100 dark:bg-dark-bg group">
-                          <img 
-                            src={URL.createObjectURL(file)} 
-                            alt="preview" 
-                            className="w-full h-full object-cover" 
-                          />
-                          <button 
-                            type="button"
-                            onClick={() => removeFile(idx)}
-                            className="absolute top-1 right-1 p-1 bg-rose-500 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X className="w-3 h-3" />
-                          </button>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Existing Image URL (Manual Override) */}
                   <div>

@@ -24,6 +24,7 @@ import { supabase } from '../lib/supabase';
 import { Order, Product, OrderStatus, AppSettings } from '../types';
 import { cn } from '../lib/utils';
 import { toast } from 'react-hot-toast';
+import { uploadFileWithFallback } from '../lib/imageUtils';
 
 import Stats from './Stats';
 import Orders from './Orders';
@@ -240,31 +241,12 @@ export default function Dashboard({ initialSettings: settings, onUpdateSettings:
     const tId = toast.loading('Uploading brand logo...');
     
     try {
-      const fileExt = file.name.split('.').pop();
+      const fileExt = file.name.split('.').pop() || 'jpg';
       const fileName = `brand_logo_${Date.now()}.${fileExt}`;
-      const filePath = `system/${fileName}`;
+      const uploadedUrl = await uploadFileWithFallback(file, 'system', fileName);
 
-      // Try multiple bucket names based on known user environment
-      const buckets = ['product images', 'product-images', 'custom-orders'];
-      let uploadedUrl = null;
-      let uploadError = null;
-
-      for (const bucketName of buckets) {
-        const { error } = await supabase.storage.from(bucketName).upload(filePath, file);
-        if (!error) {
-          const { data: { publicUrl } } = supabase.storage.from(bucketName).getPublicUrl(filePath);
-          uploadedUrl = publicUrl;
-          break;
-        }
-        uploadError = error;
-      }
-
-      if (uploadedUrl) {
-        updateSettings({ ...settings, logoUrl: uploadedUrl });
-        toast.success('Logo updated successfully', { id: tId });
-      } else {
-        throw uploadError || new Error('All upload attempts failed');
-      }
+      updateSettings({ ...settings, logoUrl: uploadedUrl });
+      toast.success('Logo updated successfully', { id: tId });
     } catch (err: any) {
       toast.error(`Upload failed: ${err.message}`, { id: tId });
     } finally {
