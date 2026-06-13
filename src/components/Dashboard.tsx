@@ -241,6 +241,42 @@ export default function Dashboard({ initialSettings: settings, onUpdateSettings:
     };
   }, []);
 
+  // Real-time subscription to products table to keep stock updated automatically
+  useEffect(() => {
+    const productsChannel = supabase
+      .channel('products-changes')
+      .on('postgres_changes', 
+        { event: 'UPDATE', schema: 'public', table: 'products' },
+        (payload) => {
+          // update the product stock in local state
+          const updatedProduct = payload.new as Product;
+          setProducts(prev => prev.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(productsChannel);
+    };
+  }, []);
+
+  // Make products query refetch every time the page becomes visible/focused.
+  useEffect(() => {
+    const handleFocusAndVisibility = () => {
+      if (document.visibilityState === 'visible' || document.hasFocus()) {
+        fetchData(true);
+      }
+    };
+
+    window.addEventListener('focus', handleFocusAndVisibility);
+    document.addEventListener('visibilitychange', handleFocusAndVisibility);
+
+    return () => {
+      window.removeEventListener('focus', handleFocusAndVisibility);
+      document.removeEventListener('visibilitychange', handleFocusAndVisibility);
+    };
+  }, []);
+
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
     try {
       const { error } = await supabase
