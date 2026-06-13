@@ -116,14 +116,45 @@ export const supabase = new Proxy(realSupabase, {
 
 // Clean unhandled connection-failure overrides if they cause issues
 if (typeof window !== 'undefined') {
+  const cleanExpiredAuth = () => {
+    try {
+      for (let i = localStorage.length - 1; i >= 0; i--) {
+        const key = localStorage.key(i);
+        if (key && (key.startsWith('sb-') || key.includes('auth-token') || key.includes('supabase.auth'))) {
+          localStorage.removeItem(key);
+        }
+      }
+      realSupabase.auth.signOut({ scope: 'local' }).catch(() => {});
+      window.dispatchEvent(new Event('sandbox-mode-changed'));
+    } catch (e) {
+      console.warn('Silent localstorage cleanup failed:', e);
+    }
+  };
+
   window.addEventListener('unhandledrejection', (event) => {
     const error = event.reason;
     const msg = error?.message || String(error || '');
     const isLockError = msg.toLowerCase().includes('lock') || msg.toLowerCase().includes('steal') || msg.toLowerCase().includes('navigator.locks') || msg.toLowerCase().includes('locking');
+    const isRefreshError = msg.includes('Refresh Token') || msg.toLowerCase().includes('refresh_token') || msg.toLowerCase().includes('refresh token') || msg.toLowerCase().includes('invalid refresh token');
     
     if (isLockError) {
       console.warn('Silenced unhandled lock warning gracefully:', msg);
       event.preventDefault();
+    } else if (isRefreshError) {
+      console.warn('Silenced stale/invalid refresh token warning gracefully:', msg);
+      event.preventDefault();
+      cleanExpiredAuth();
+    }
+  });
+
+  window.addEventListener('error', (event) => {
+    const msg = event.message || '';
+    const isRefreshError = msg.includes('Refresh Token') || msg.toLowerCase().includes('refresh_token') || msg.toLowerCase().includes('refresh token') || msg.toLowerCase().includes('invalid refresh token');
+    
+    if (isRefreshError) {
+      console.warn('Silenced raw refresh token error gracefully:', msg);
+      event.preventDefault();
+      cleanExpiredAuth();
     }
   });
 }

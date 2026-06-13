@@ -82,6 +82,21 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
     setLoading(true);
     try {
       const product = products.find(p => p.id === formData.product_id);
+      
+      // Front-end Stock Validation
+      if (product) {
+        if (product.stock <= 0 || product.status === 'sold_out') {
+          toast.error(`"${product.name}" is currently out of stock.`);
+          setLoading(false);
+          return;
+        }
+        if (product.stock < formData.quantity) {
+          toast.error(`Insufficient stock. Only ${product.stock} units available.`);
+          setLoading(false);
+          return;
+        }
+      }
+
       const total_price = (product?.price || 0) * formData.quantity;
 
       const payload = {
@@ -98,25 +113,12 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
         if (error) throw error;
         toast.success('Order updated');
       } else {
-        // Create order
+        // Create order - Stock is atomially decremented by a database trigger in Supabase
         const { error: orderError } = await supabase
           .from('orders')
           .insert([payload]);
         
         if (orderError) throw orderError;
-        
-        // Update stock (Best effort with error logging)
-        if (product) {
-          const { error: stockError } = await supabase
-            .from('products')
-            .update({ stock: product.stock - formData.quantity })
-            .eq('id', product.id);
-          
-          if (stockError) {
-            console.warn('Stock update failed:', stockError.message);
-            toast.error('Order placed, but stock update failed.');
-          }
-        }
         
         toast.success('Order placed successfully');
       }
