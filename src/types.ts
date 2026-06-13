@@ -12,6 +12,7 @@ export interface Product {
   status: ProductStatus;
   description?: string;
   created_at: string;
+  delivery_charge?: number;
 }
 
 export interface Order {

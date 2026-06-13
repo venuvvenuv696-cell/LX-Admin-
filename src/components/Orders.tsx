@@ -39,6 +39,11 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingOrder, setEditingOrder] = useState<Order | null>(null);
   const [loading, setLoading] = useState(false);
+  const [optimisticStatuses, setOptimisticStatuses] = useState<Record<string, OrderStatus>>({});
+
+  React.useEffect(() => {
+    setOptimisticStatuses({});
+  }, [orders]);
 
   // Pagination
   const [currentPage, setCurrentPage] = useState(1);
@@ -168,6 +173,7 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
   };
 
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
+    setOptimisticStatuses(prev => ({ ...prev, [orderId]: newStatus }));
     try {
       const { error } = await supabase
         .from('orders')
@@ -181,6 +187,11 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
         (onRefresh as any)(true);
       }
     } catch (err: any) {
+      setOptimisticStatuses(prev => {
+        const copy = { ...prev };
+        delete copy[orderId];
+        return copy;
+      });
       toast.error(`Update failed: ${err.message}`);
     }
   };
@@ -280,11 +291,11 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="relative flex items-center group/status">
                         <select 
-                          value={order.status}
+                          value={optimisticStatuses[order.id] || order.status}
                           onChange={(e) => handleStatusUpdate(order.id, e.target.value as OrderStatus)}
                           className={cn(
                             "appearance-none cursor-pointer pl-3 pr-8 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border outline-none transition-all hover:scale-105 active:scale-95 focus:ring-4 focus:ring-premium-gold/10 bg-white dark:bg-dark-bg min-w-[110px] text-center shadow-sm",
-                            STATUS_COLORS[order.status] || STATUS_COLORS.pending
+                            STATUS_COLORS[optimisticStatuses[order.id] || order.status] || STATUS_COLORS.pending
                           )}
                         >
                           {ORDER_STATUSES.map(s => (

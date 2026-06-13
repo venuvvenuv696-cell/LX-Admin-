@@ -156,7 +156,12 @@ export default function Dashboard({ initialSettings: settings, onUpdateSettings:
 
       // Populate if fulfilled successfully
       if (ordersRes.status === 'fulfilled' && !ordersRes.value.error) {
-        setOrders(ordersRes.value.data || []);
+        const fetchedOrders = ordersRes.value.data || [];
+        setOrders(fetchedOrders);
+        setSelectedOrder(prev => {
+          if (!prev) return null;
+          return fetchedOrders.find(o => o.id === prev.id) || prev;
+        });
       }
       if (productsRes.status === 'fulfilled' && !productsRes.value.error) {
         setProducts(productsRes.value.data || []);
@@ -235,6 +240,21 @@ export default function Dashboard({ initialSettings: settings, onUpdateSettings:
       window.removeEventListener('sandbox-mode-changed', onOfflineUpdate);
     };
   }, []);
+
+  const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus) => {
+    try {
+      const { error } = await supabase
+        .from('orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+      toast.success(`Order status updated to ${newStatus}`);
+      fetchData(true);
+    } catch (err: any) {
+      toast.error(`Update failed: ${err.message}`);
+    }
+  };
 
   const handleLogoUpload = async (file: File) => {
     setUploadingLogo(true);
@@ -671,11 +691,27 @@ export default function Dashboard({ initialSettings: settings, onUpdateSettings:
                        <h2 className="text-4xl font-black tracking-tight dark:text-white">{selectedOrder.customer_name}</h2>
                        <p className="text-xs font-mono text-neutral-400 mt-1 uppercase tracking-widest">Order Reference: {selectedOrder.id}</p>
                      </div>
-                     <div className="flex items-center gap-3">
-                        <span className={cn("px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider border", STATUS_COLORS[selectedOrder.status])}>
-                           {selectedOrder.status}
-                        </span>
-                        <div className="h-4 w-px bg-apple-gray-200 dark:bg-dark-border mx-1" />
+                     <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                        <div className="relative inline-flex items-center">
+                           <select 
+                             value={selectedOrder.status}
+                             onChange={(e) => handleStatusUpdate(selectedOrder.id, e.target.value as OrderStatus)}
+                             className={cn(
+                               "appearance-none cursor-pointer pl-3 pr-8 py-1.5 rounded-full text-[10px] font-black uppercase tracking-wider border outline-none transition-all hover:scale-105 active:scale-95 focus:ring-4 focus:ring-premium-gold/10 bg-white dark:bg-dark-bg min-w-[110px] text-center shadow-sm font-black",
+                               STATUS_COLORS[selectedOrder.status]
+                             )}
+                           >
+                             {(Object.keys(STATUS_COLORS) as OrderStatus[]).map(s => (
+                               <option key={s} value={s} className="bg-white text-black capitalize font-medium py-2">
+                                 {s}
+                               </option>
+                             ))}
+                           </select>
+                           <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none opacity-40">
+                             <ChevronRight className="w-3 h-3 text-current rotate-90" />
+                           </div>
+                        </div>
+                        <div className="hidden sm:block h-4 w-px bg-apple-gray-200 dark:bg-dark-border mx-1" />
                         <span className="text-neutral-400 text-xs font-bold italic tracking-tight">Placed on {new Date(selectedOrder.created_at).toLocaleString()}</span>
                      </div>
                   </div>

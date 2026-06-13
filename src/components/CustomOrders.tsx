@@ -401,9 +401,19 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public."Customer Orders";`;
           .order('created_at', { ascending: false });
         
         if (legacyError) throw error;
-        setOrders(legacyData || []);
+        const fetchedList = legacyData || [];
+        setOrders(fetchedList);
+        setSelectedOrder(prev => {
+          if (!prev) return null;
+          return fetchedList.find(o => o.id === prev.id) || prev;
+        });
       } else {
-        setOrders(data || []);
+        const fetchedList = data || [];
+        setOrders(fetchedList);
+        setSelectedOrder(prev => {
+          if (!prev) return null;
+          return fetchedList.find(o => o.id === prev.id) || prev;
+        });
       }
     } catch (error: any) {
       console.error('Error fetching custom orders:', error.message);
@@ -442,6 +452,12 @@ ALTER PUBLICATION supabase_realtime ADD TABLE public."Customer Orders";`;
         await supabase.from('customer_orders').update({ status }).eq('id', id);
       }
       toast.success(`Order status updated to ${status}`);
+      setSelectedOrder(prev => {
+        if (prev && prev.id === id) {
+          return { ...prev, status };
+        }
+        return prev;
+      });
       onRefresh();
     } catch (error: any) {
       toast.error(`Error: ${error.message}`);

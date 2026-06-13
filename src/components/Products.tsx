@@ -69,7 +69,8 @@ export default function Products({ products, onRefresh }: ProductsProps) {
     category: '',
     image_url: '',
     description: '',
-    status: 'available' as ProductStatus
+    status: 'available' as ProductStatus,
+    delivery_charge: 0
   });
 
   const [existingImages, setExistingImages] = useState<string[]>([]);
@@ -83,7 +84,8 @@ export default function Products({ products, onRefresh }: ProductsProps) {
       category: '',
       image_url: '',
       description: '',
-      status: 'available'
+      status: 'available',
+      delivery_charge: 0
     });
     setEditingProduct(null);
     uploadingFiles.forEach(f => {
@@ -128,7 +130,8 @@ export default function Products({ products, onRefresh }: ProductsProps) {
       category: product.category,
       image_url: product.image_url || '',
       description: product.description || '',
-      status: product.status
+      status: product.status,
+      delivery_charge: product.delivery_charge || 0
     });
 
     // Parse existing images
@@ -438,6 +441,11 @@ export default function Products({ products, onRefresh }: ProductsProps) {
                 <div className="text-right">
                   <p className="text-xs text-neutral-500 mb-1">Price</p>
                   <p className="text-xl font-black text-premium-gold">${product.price.toFixed(2)}</p>
+                  <p className="text-[10px] text-neutral-400 mt-1 uppercase tracking-widest font-bold">
+                    {product.delivery_charge === undefined || product.delivery_charge === 0 
+                      ? 'Free Delivery' 
+                      : `+ ₹${product.delivery_charge} Delivery`}
+                  </p>
                 </div>
               </div>
             </div>
@@ -512,6 +520,18 @@ export default function Products({ products, onRefresh }: ProductsProps) {
                   <option value="available">Available</option>
                   <option value="sold_out">Sold Out</option>
                 </select>
+              </div>
+              <div>
+                <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Delivery Charge (₹)</label>
+                <input 
+                  type="number"
+                  min="0"
+                  step="1"
+                  value={formData.delivery_charge}
+                  onChange={e => setFormData({ ...formData, delivery_charge: parseInt(e.target.value) || 0 })}
+                  className="w-full px-4 py-3 bg-apple-gray-100 dark:bg-dark-bg border border-transparent rounded-2xl focus:bg-white dark:focus:bg-dark-card focus:border-premium-gold outline-none transition-all"
+                  placeholder="e.g. 50 (0 for free)"
+                />
               </div>
 
               <div className="col-span-2">
