@@ -419,7 +419,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
     city text NOT NULL,
     address text NOT NULL,
     product_id uuid REFERENCES public.products(id) ON DELETE SET NULL,
-    product_variant text NOT NULL,
+    product_variant text, -- Nullable to support customer website which uses product_name
+    product_name text,    -- Support direct website placements
     quantity integer NOT NULL DEFAULT 1,
     total_price numeric NOT NULL,
     status text NOT NULL DEFAULT 'pending',
@@ -471,7 +472,8 @@ CREATE TABLE IF NOT EXISTS public.orders (
     city text NOT NULL,
     address text NOT NULL,
     product_id uuid REFERENCES public.products(id) ON DELETE SET NULL,
-    product_variant text NOT NULL,
+    product_variant text, -- Nullable to support customer website which uses product_name
+    product_name text,    -- Support direct website placements
     quantity integer NOT NULL DEFAULT 1,
     total_price numeric NOT NULL,
     status text NOT NULL DEFAULT 'pending',

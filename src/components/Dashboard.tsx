@@ -746,7 +746,7 @@ export default function Dashboard({ initialSettings: settings, onUpdateSettings:
                            </div>
                            <div>
                               <p className="text-[10px] uppercase font-black tracking-widest text-neutral-400 mb-1">Inventory Manifest</p>
-                              <p className="font-bold text-lg dark:text-white">{selectedOrder.product_variant}</p>
+                              <p className="font-bold text-lg dark:text-white">{selectedOrder.product_name || selectedOrder.product_variant || 'N/A'}</p>
                               <p className="text-sm font-black text-premium-gold uppercase tracking-widest">Quantity: {selectedOrder.quantity} Units</p>
                            </div>
                         </div>

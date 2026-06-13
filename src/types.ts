@@ -23,7 +23,8 @@ export interface Order {
   city: string;
   address: string;
   product_id?: string; // Link to product
-  product_variant: string;
+  product_variant?: string;
+  product_name?: string;
   quantity: number;
   total_price: number;
   status: OrderStatus;

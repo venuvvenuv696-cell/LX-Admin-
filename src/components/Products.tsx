@@ -459,8 +459,7 @@ export default function Products({ products, onRefresh }: ProductsProps) {
         onClose={() => setIsModalOpen(false)} 
         title={editingProduct ? 'Edit Product' : 'Add Product'}
       >
-        <div className="max-h-[80vh] overflow-y-auto pr-2 custom-scrollbar">
-          <form onSubmit={handleSubmit} className="space-y-6">
+        <form onSubmit={handleSubmit} className="space-y-6">
             <div className="grid grid-cols-2 gap-4">
               <div className="col-span-2">
                 <label className="block text-[10px] font-black text-neutral-400 uppercase tracking-widest mb-2">Product Name</label>
@@ -637,7 +636,6 @@ export default function Products({ products, onRefresh }: ProductsProps) {
               {loading ? 'Processing...' : editingProduct ? 'Update Product' : 'Create Product'}
             </button>
           </form>
-        </div>
       </Modal>
     </div>
   );

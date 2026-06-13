@@ -107,6 +107,7 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
       const payload = {
         ...formData,
         product_variant: product?.name || '',
+        product_name: product?.name || '',
         total_price
       };
 
@@ -286,7 +287,7 @@ export default function Orders({ orders, products, onRefresh, onViewDetails }: O
                         <span className="text-[10px] text-neutral-400 font-mono">ID: {order.id.slice(0, 8)}</span>
                       </div>
                     </td>
-                    <td className="px-6 py-4">{order.product_variant}</td>
+                    <td className="px-6 py-4">{order.product_name || order.product_variant || 'N/A'}</td>
                     <td className="px-6 py-4 font-semibold">{order.quantity}</td>
                     <td className="px-6 py-4" onClick={(e) => e.stopPropagation()}>
                       <div className="relative flex items-center group/status">

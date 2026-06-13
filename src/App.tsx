@@ -54,105 +54,110 @@ export default function App() {
 
   useEffect(() => {
     const checkUserRole = async (userSession: any) => {
-      if (userSession) {
-        const userEmail = userSession.user.email?.toLowerCase();
-        const isDesignatedAdmin = userEmail === 'venuvvenuv696@gmail.com' || userEmail === 'madavan696@gmail.com';
-        
-        // Instant bypass to avoid latency, Supabase API rate limits or network issues
-        if (isDesignatedAdmin) {
-          setSession(userSession);
-          setLoading(false);
-          return;
-        }
+      if (!userSession) {
+        setSession(null);
+        setLoading(false);
+        return;
+      }
 
-        try {
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('*')
-            .eq('id', userSession.user.id)
-            .single();
+      const userEmail = userSession.user.email?.toLowerCase();
+      const isDesignatedAdmin = userEmail === 'venuvvenuv696@gmail.com' || userEmail === 'madavan696@gmail.com';
+      
+      // Instant bypass to avoid latency, Supabase API rate limits or network issues
+      if (isDesignatedAdmin) {
+        setSession(userSession);
+        setLoading(false);
+        return;
+      }
 
-          const isUserAdmin = profile?.role === 'admin';
+      try {
+        const { data: profile, error } = await supabase
+          .from('profiles')
+          .select('*')
+          .eq('id', userSession.user.id)
+          .single();
 
+        if (error) {
+          console.warn('Error fetching profile in checkUserRole:', error.message);
+          // Only sign out if we expect the record to be present but the user is definitely not admin (fallback checks)
+          if (error.code === 'PGRST116') {
+            await supabase.auth.signOut({ scope: 'local' });
+            setSession(null);
+          } else {
+            // Keep the session on transient/network errors to prevent lockouts
+            setSession(userSession);
+          }
+        } else if (profile) {
+          const isUserAdmin = profile.role === 'admin';
           if (!isUserAdmin) {
-            try {
-              await supabase.auth.signOut({ scope: 'local' });
-            } catch (soErr) {
-              console.warn('Signout failed:', soErr);
-              clearSupabaseLocalStorage();
-            }
+            await supabase.auth.signOut({ scope: 'local' });
             setSession(null);
           } else {
             setSession(userSession);
           }
-        } catch (err) {
-          // Fallback check to prevent lock-outs when Supabase tables/profiles are loading slowly or experiencing network issues
-          try {
-            await supabase.auth.signOut({ scope: 'local' });
-          } catch (soErr) {
-            console.warn('Signout failed in catch:', soErr);
-            clearSupabaseLocalStorage();
-          }
-          setSession(null);
+        } else {
+          setSession(userSession);
         }
-      } else {
-        setSession(null);
+      } catch (err) {
+        console.error('Error in checkUserRole catch block:', err);
+        // Fallback: keep session on exception to prevent lock-outs when Supabase tables/profiles are loading slowly
+        setSession(userSession);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     };
 
-    // Get initial session with error handling for refresh token issues
+    // Keep session loaded on start with safe fallback check
     supabase.auth.getSession().then(({ data: { session }, error }) => {
       if (error) {
         console.error('Supabase Session Error:', error.message);
-        // If the session is invalid, clear everything to prevent loops
         clearSupabaseLocalStorage();
         supabase.auth.signOut({ scope: 'local' }).then(() => {
           setSession(null);
           setLoading(false);
         }).catch(() => {
-          // Even if signOut fails, reset UI state
           setSession(null);
           setLoading(false);
         });
-      } else {
+      } else if (session) {
         checkUserRole(session);
+      } else {
+        setSession(null);
+        setLoading(false);
       }
     }).catch((err) => {
-      console.warn('Failed to get Supabase session. Network or connection issue:', err);
-      // Reset loading state and show login screen with connection diagnostic advice
-      clearSupabaseLocalStorage();
+      console.warn('Failed to get Supabase session on init:', err);
       setSession(null);
       setLoading(false);
     });
 
-    // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log('Auth Event:', _event);
+    // Listen for auth changes and sync session state
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      console.log('Auth Event:', _event, newSession?.user?.email);
       
       if (_event === 'SIGNED_IN') {
-        checkUserRole(session);
+        if (newSession) {
+          checkUserRole(newSession);
+        }
       } else if (_event === 'SIGNED_OUT') {
         setSession(null);
         setLoading(false);
-      } else if (_event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED') {
-        if (session) {
-          // Verify role quickly or update state without immediately logging out
-          const userEmail = session.user.email?.toLowerCase();
+      } else if (_event === 'TOKEN_REFRESHED' || _event === 'USER_UPDATED' || _event === 'INITIAL_SESSION') {
+        if (newSession) {
+          const userEmail = newSession.user.email?.toLowerCase();
           if (userEmail === 'venuvvenuv696@gmail.com' || userEmail === 'madavan696@gmail.com') {
-            setSession(session);
+            setSession(newSession);
+            setLoading(false);
           } else {
-            checkUserRole(session);
+            checkUserRole(newSession);
           }
         } else {
           setSession(null);
           setLoading(false);
         }
-      } else if (_event === 'INITIAL_SESSION') {
-        // Handled by getSession above
       } else {
-        if (session) {
-          setSession(session);
+        if (newSession) {
+          setSession(newSession);
         }
         setLoading(false);
       }
